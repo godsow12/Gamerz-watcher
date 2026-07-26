@@ -31,11 +31,9 @@ def dismiss_popup(page):
                 age_btn.first.click(timeout=3000)
                 page.wait_for_timeout(800)
                 continue
-
             overlay = page.locator("div.fixed.inset-0")
             if overlay.count() == 0 or not overlay.first.is_visible():
                 return
-
             candidates = overlay.first.locator(
                 "button:has-text('Continue'), button:has-text('Got it'), "
                 "button:has-text('I Understand'), button:has-text('Enter'), "
@@ -57,6 +55,17 @@ def dump_debug(page, label):
     except Exception:
         pass
 
+def get_job_count(page):
+    """Wait for real job-count text to render, not a loading skeleton.
+    Retries for up to ~10 seconds before giving up and returning what it has."""
+    for attempt in range(10):
+        content = page.content()
+        match = re.search(r"(\d+)\s+Jobs open", content)
+        if match:
+            return int(match.group(1))
+        page.wait_for_timeout(1000)
+    return 0  # genuinely never found it after waiting
+
 def main():
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -74,19 +83,15 @@ def main():
             dump_debug(page, "03_after_fill")
 
             page.get_by_text("Login & Play").click(timeout=15000)
-
             page.wait_for_url(lambda url: "/login" not in url, timeout=20000)
-            page.wait_for_timeout(2500)
+            page.wait_for_timeout(2000)
             dump_debug(page, "04_after_login")
 
             page.goto("https://gamerz360.com/tasker?tab=queue", timeout=30000)
-            page.wait_for_timeout(4000)
             dismiss_popup(page)
-            dump_debug(page, "05_tasks_page")
 
-            content = page.content()
-            match = re.search(r"(\d+)\s+Jobs open", content)
-            current_count = int(match.group(1)) if match else 0
+            current_count = get_job_count(page)
+            dump_debug(page, "05_tasks_page")
 
             last_count = load_last_count()
             print(f"Last: {last_count}, Current: {current_count}")
