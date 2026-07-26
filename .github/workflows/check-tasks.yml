@@ -1,0 +1,45 @@
+name: Check Gamers360 Tasks
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Run checker
+        env:
+          GAMERZ_EMAIL: ${{ secrets.GAMERZ_EMAIL }}
+          GAMERZ_PASSWORD: ${{ secrets.GAMERZ_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python script.py
+      - name: Upload debug files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-files
+          path: debug_*.png
+          if-no-files-found: ignore
+      - name: Commit state file
+        if: always()
+        run: |
+          git config user.name "task-bot"
+          git config user.email "task-bot@users.noreply.github.com"
+          if [ -f state.json ]; then
+            git add state.json
+            git diff --staged --quiet || git commit -m "update state"
+            git push
+          else
+            echo "No state.json yet, nothing to commit."
+          fi
