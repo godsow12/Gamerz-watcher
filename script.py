@@ -59,10 +59,13 @@ def get_job_count(page):
     """Wait for real job-count text to render, not a loading skeleton.
     Retries for up to ~10 seconds before giving up and returning what it has."""
     for attempt in range(10):
-        content = page.content()
-        match = re.search(r"(\d+)\s+Jobs open", content)
-        if match:
-            return int(match.group(1))
+        try:
+            content = page.content()
+            match = re.search(r"(\d+)\s+Jobs open", content)
+            if match:
+                return int(match.group(1))
+        except Exception:
+            pass  # page was mid-navigation, just try again shortly
         page.wait_for_timeout(1000)
     return 0  # genuinely never found it after waiting
 
