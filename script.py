@@ -44,6 +44,12 @@ def dismiss_popup(page):
                 page.wait_for_timeout(800)
                 continue
 
+            keep_earning_btn = page.get_by_text("Keep Earning", exact=False)
+            if keep_earning_btn.count() > 0 and keep_earning_btn.first.is_visible():
+                keep_earning_btn.first.click(timeout=3000)
+                page.wait_for_timeout(800)
+                continue
+
             overlay = page.locator("div.fixed.inset-0")
             if overlay.count() == 0 or not overlay.first.is_visible():
                 return
@@ -70,15 +76,17 @@ def dump_debug(page, label):
         pass
 
 def get_job_count(page):
-    """Reads the 'To Do' stat card, which reflects real open tasks."""
     for attempt in range(10):
         try:
             text = page.inner_text("body")
             lines = [l.strip() for l in text.splitlines() if l.strip()]
             for i, line in enumerate(lines):
                 if line.upper() == "TO DO":
-                    if i + 1 < len(lines) and lines[i + 1].isdigit():
-                        return int(lines[i + 1])
+                    for j in range(i + 1, min(i + 4, len(lines))):
+                        if lines[j].isdigit():
+                            return int(lines[j])
+                        if lines[j].isupper() and len(lines[j]) > 3:
+                            break  # hit a different label, stop looking here
         except Exception:
             pass
         page.wait_for_timeout(1000)
@@ -107,7 +115,8 @@ def main():
 
             page.goto("https://gamerz360.com/tasker?tab=queue", timeout=30000)
             dismiss_popup(page)
-
+            dismiss_popup(page)
+            
             current_count = get_job_count(page)
             dump_debug(page, "05_tasks_page")
 
