@@ -24,16 +24,30 @@ def save_last_count(count):
         json.dump({"last_count": count}, f)
 
 def dismiss_popup(page):
-    for _ in range(4):
+    for _ in range(5):
         try:
             age_btn = page.get_by_text("I'm 18 or Older", exact=True)
             if age_btn.count() > 0 and age_btn.first.is_visible():
                 age_btn.first.click(timeout=3000)
                 page.wait_for_timeout(800)
                 continue
+
+            skip_link = page.get_by_text("Skip setup", exact=True)
+            if skip_link.count() > 0 and skip_link.first.is_visible():
+                skip_link.first.click(timeout=3000)
+                page.wait_for_timeout(800)
+                continue
+
+            lets_go_btn = page.get_by_text("Let's go", exact=False)
+            if lets_go_btn.count() > 0 and lets_go_btn.first.is_visible():
+                lets_go_btn.first.click(timeout=3000)
+                page.wait_for_timeout(800)
+                continue
+
             overlay = page.locator("div.fixed.inset-0")
             if overlay.count() == 0 or not overlay.first.is_visible():
                 return
+
             candidates = overlay.first.locator(
                 "button:has-text('Continue'), button:has-text('Got it'), "
                 "button:has-text('I Understand'), button:has-text('Enter'), "
@@ -56,18 +70,19 @@ def dump_debug(page, label):
         pass
 
 def get_job_count(page):
-    """Wait for real job-count text to render, not a loading skeleton.
-    Retries for up to ~10 seconds before giving up and returning what it has."""
+    """Reads the 'To Do' stat card, which reflects real open tasks."""
     for attempt in range(10):
         try:
-            content = page.content()
-            match = re.search(r"(\d+)\s+Jobs open", content)
-            if match:
-                return int(match.group(1))
+            text = page.inner_text("body")
+            lines = [l.strip() for l in text.splitlines() if l.strip()]
+            for i, line in enumerate(lines):
+                if line.upper() == "TO DO":
+                    if i + 1 < len(lines) and lines[i + 1].isdigit():
+                        return int(lines[i + 1])
         except Exception:
-            pass  # page was mid-navigation, just try again shortly
+            pass
         page.wait_for_timeout(1000)
-    return 0  # genuinely never found it after waiting
+    return 0
 
 def main():
     with sync_playwright() as p:
