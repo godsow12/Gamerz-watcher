@@ -1,5 +1,5 @@
 import os, re, json
-import urllib.request, urllib.parse
+import urllib.request, urllib.parse, urllib.error
 from playwright.sync_api import sync_playwright
 
 EMAIL = os.environ["GAMERZ_EMAIL"]
@@ -11,7 +11,12 @@ STATE_FILE = "state.json"
 def send_telegram(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": CHAT_ID, "text": text}).encode()
-    urllib.request.urlopen(url, data=data)
+    try:
+        urllib.request.urlopen(url, data=data)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        print(f"Telegram rejected the message: {body}")
+        raise
 
 def load_last_count():
     if os.path.exists(STATE_FILE):
